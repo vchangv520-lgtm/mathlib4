@@ -8,10 +8,12 @@ module
 public import Mathlib.Geometry.Euclidean.Angle.Oriented.RightAngle
 public import Mathlib.Geometry.Euclidean.Angle.Oriented.Projection
 
+import Mathlib.Geometry.Euclidean.Triangle
+
 /-!
 # Angle bisectors.
 
-This file proves lemmas relating to bisecting angles.
+This file proves lemmas relating to bisecting angles, including the angle bisector theorem.
 
 -/
 
@@ -346,5 +348,52 @@ lemma dist_orthogonalProjection_line_eq_iff_two_zsmul_oangle_eq {p p₁ p₂ p�
       (ha.injective.ne (by decide : (0 : Fin 3) ≠ 2))⟩
 
 end Oriented
+
+/-- The **angle bisector theorem**, in cross-product form. -/
+lemma dist_mul_dist_eq_of_sbtw_of_angle_eq {p₁ p₂ p₃ p : P}
+    (h : ¬Collinear ℝ ({p₁, p₂, p₃} : Set P))
+    (hp : Sbtw ℝ p₂ p p₃)
+    (ha : ∠ p₂ p₁ p = ∠ p p₁ p₃) :
+    dist p₂ p * dist p₁ p₃ = dist p p₃ * dist p₁ p₂ := by
+  have h' : ¬Collinear ℝ ({p₂, p₁, p₃} : Set P) := by
+    simpa only [Set.insert_comm] using h
+  have hsum : ∠ p₂ p₁ p + ∠ p p₁ p₃ = ∠ p₂ p₁ p₃ :=
+    angle_add_angle_eq_of_sbtw hp
+  have hapos : 0 < ∠ p₂ p₁ p := by
+    have hp := angle_pos_of_not_collinear h'
+    linarith
+  have halt : ∠ p₂ p₁ p < Real.pi := by
+    have hp := angle_le_pi p₂ p₁ p₃
+    have hpi := Real.pi_pos
+    linarith
+  have hsinpos : 0 < Real.sin (∠ p₂ p₁ p) :=
+    Real.sin_pos_of_pos_of_lt_pi hapos halt
+  have hsup : ∠ p₁ p p₂ + ∠ p₁ p p₃ = Real.pi :=
+    angle_add_angle_eq_pi_of_angle_eq_pi p₁ hp.angle₁₂₃_eq_pi
+  have hsin : Real.sin (∠ p₁ p p₂) = Real.sin (∠ p₁ p p₃) := by
+    rw [show ∠ p₁ p p₂ = Real.pi - ∠ p₁ p p₃ by linarith, Real.sin_pi_sub]
+  have hb := law_sin p p₁ p₂
+  rw [angle_comm p p₁ p₂, angle_comm p₂ p p₁, hsin] at hb
+  have hc := law_sin p p₁ p₃
+  rw [← ha, angle_comm p₃ p p₁, dist_comm p₃ p] at hc
+  apply mul_left_cancel₀ (ne_of_gt hsinpos)
+  calc
+    Real.sin (∠ p₂ p₁ p) * (dist p₂ p * dist p₁ p₃) =
+        (Real.sin (∠ p₂ p₁ p) * dist p₁ p₃) * dist p₂ p := by ring
+    _ = (Real.sin (∠ p₁ p p₃) * dist p p₃) * dist p₂ p := by rw [hc]
+    _ = (Real.sin (∠ p₁ p p₃) * dist p₂ p) * dist p p₃ := by ring
+    _ = (Real.sin (∠ p₂ p₁ p) * dist p₁ p₂) * dist p p₃ := by rw [← hb]
+    _ = Real.sin (∠ p₂ p₁ p) * (dist p p₃ * dist p₁ p₂) := by ring
+
+/-- The **angle bisector theorem**: an internal angle bisector divides the opposite side
+in the ratio of the adjacent sides. -/
+lemma dist_div_dist_eq_of_sbtw_of_angle_eq {p₁ p₂ p₃ p : P}
+    (h : ¬Collinear ℝ ({p₁, p₂, p₃} : Set P))
+    (hp : Sbtw ℝ p₂ p p₃)
+    (ha : ∠ p₂ p₁ p = ∠ p p₁ p₃) :
+    dist p₂ p / dist p p₃ = dist p₁ p₂ / dist p₁ p₃ := by
+  apply (div_eq_div_iff (dist_ne_zero.mpr hp.ne_right)
+    (dist_ne_zero.mpr (ne₁₃_of_not_collinear h))).2
+  simpa only [mul_comm] using dist_mul_dist_eq_of_sbtw_of_angle_eq h hp ha
 
 end EuclideanGeometry
